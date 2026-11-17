@@ -15,15 +15,15 @@
   const mat = (color, o) => {
     const key = color + (o ? JSON.stringify(o) : '');
     let m = matCache.get(key);
-    if (!m) { m = new THREE.MeshStandardMaterial(Object.assign({ color, flatShading: true, roughness: 0.85, metalness: 0 }, o)); matCache.set(key, m); }
+    if (!m) { m = new THREE.MeshStandardMaterial(Object.assign({ color, flatShading: false, roughness: 0.7, metalness: 0 }, o)); matCache.set(key, m); }
     return m;
   };
   const G = {
     box: new THREE.BoxGeometry(1, 1, 1),
-    cyl: new THREE.CylinderGeometry(1, 1, 1, 12),
-    cone: new THREE.CylinderGeometry(0.45, 1, 1, 12),
-    sph: new THREE.SphereGeometry(1, 10, 8),
-    ico: new THREE.IcosahedronGeometry(1, 0),
+    cyl: new THREE.CylinderGeometry(1, 1, 1, 24),
+    cone: new THREE.CylinderGeometry(0.45, 1, 1, 24),
+    sph: new THREE.SphereGeometry(1, 28, 20),
+    ico: new THREE.IcosahedronGeometry(1, 2),
     plane: new THREE.PlaneGeometry(1, 1),
   };
   const basic = (color) => mat(color, { emissive: color, emissiveIntensity: 0.9 });
@@ -86,17 +86,15 @@
   // ---------- Dựng phòng ----------
   function floorTexture(W, D) {
     const c = document.createElement('canvas'); c.width = c.height = 512;
-    const x = c.getContext('2d'); let s = 7;
-    const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
-    x.fillStyle = '#e8c898'; x.fillRect(0, 0, 512, 512);
-    for (let r = 0; r < 8; r++) {
-      const off = rnd() * 512;
-      for (let k = 0; k < 3; k++) {
-        const w = 171, px = (off + k * 171) % 512, l = 218 + rnd() * 14;
-        x.fillStyle = `rgb(${l + 18},${l - 18},${l - 62})`;
-        x.strokeStyle = 'rgba(120,80,40,.35)'; x.lineWidth = 2;
-        // Vẽ cả bản dịch -512 để ván nào tràn mép texture vẫn nối liền khi lặp.
-        for (const dx of [0, -512]) { x.fillRect(px + dx, r * 64, w, 64); x.strokeRect(px + dx, r * 64, w, 64); }
+    const x = c.getContext('2d'); let sd = 5;
+    const rnd = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
+    x.fillStyle = '#9a5a40'; x.fillRect(0, 0, 512, 512);
+    for (let r = 0; r < 16; r++) {
+      const off = rnd() * 128;
+      for (let k = -1; k < 5; k++) {
+        const l = rnd() * 28;
+        x.fillStyle = 'rgb(' + (176 + l) + ',' + (108 + l * 0.7) + ',' + (80 + l * 0.5) + ')';
+        x.fillRect(off + k * 128 + 1, r * 32 + 1, 126, 30);
       }
     }
     const t = new THREE.CanvasTexture(c);
@@ -104,41 +102,42 @@
     return t;
   }
 
+  // Tường gạch đỏ: vữa sáng, mỗi viên một sắc độ để không bị đều.
+  function brickMaterial(W, H) {
+    const c = document.createElement('canvas'); c.width = c.height = 256;
+    const x = c.getContext('2d'); let sd = 9;
+    const rnd = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
+    x.fillStyle = '#d8c6b8'; x.fillRect(0, 0, 256, 256);
+    for (let r = 0; r < 6; r++) for (let k = -1; k < 3; k++) {
+      const l = rnd() * 40, ox = (r % 2) * 43;
+      x.fillStyle = 'rgb(' + (150 + l) + ',' + (68 + l * 0.5) + ',' + (48 + l * 0.4) + ')';
+      x.fillRect(k * 86 + ox + 3, r * 43 + 3, 80, 37);
+    }
+    const t = new THREE.CanvasTexture(c);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(W / 1.5, H / 0.75);
+    return new THREE.MeshStandardMaterial({ map: t, roughness: 0.95 });
+  }
+
   function chair(parent, x, z, rotY, color) {
     const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rotY; parent.add(g);
-    cyl(0.05, 0.3, 0x555b66, 0, 0.17, 0, g);
-    cyl(0.28, 0.04, 0x555b66, 0, 0.02, 0, g);
-    box(0.55, 0.1, 0.55, color, 0, 0.34, 0, g);
-    box(0.55, 0.5, 0.08, color, 0, 0.64, -0.27, g); // lưng ghế nằm sau lưng người ngồi (local -z)
+    cyl(0.05, 0.3, 0x3a3d45, 0, 0.19, 0, g);
+    for (let k = 0; k < 5; k++) { const a = (k / 5) * 2 * PI; const arm = box(0.3, 0.035, 0.05, 0x3a3d45, Math.sin(a) * 0.15, 0.04, Math.cos(a) * 0.15, g); arm.rotation.y = a - PI / 2; }
+    box(0.55, 0.1, 0.55, 0xeceef2, 0, 0.36, 0, g);
+    box(0.5, 0.55, 0.08, 0xdfe2e8, 0, 0.7, -0.27, g); // lưng ghế nằm sau lưng người ngồi (local -z)
+    box(0.5, 0.1, 0.09, color, 0, 0.9, -0.27, g); // dải màu vai trò trên đỉnh lưng ghế
   }
 
   function plant(parent, x, z, s = 1) {
     const g = new THREE.Group(); g.position.set(x, 0, z); g.scale.setScalar(s); parent.add(g);
-    cyl(0.28, 0.4, 0xd98e6c, 0, 0.2, 0, g);
+    cyl(0.28, 0.4, 0xf3f1ee, 0, 0.2, 0, g);
     [[0, 0.8, 0, 0.42], [0.2, 0.6, 0.1, 0.3], [-0.2, 0.65, -0.1, 0.32], [0, 1.1, 0.05, 0.26]].forEach(([px, py, pz, r], k) =>
       put(G.ico, k % 2 ? 0x6fcf97 : 0x8bdc9e, r, r, r, px, py, pz, g));
   }
 
-  // Ban đêm: không dùng PointLight (17+ đèn sẽ rất nặng); giả ánh sáng bằng quầng sáng cộng màu + vệt sáng trên sàn.
-  let glowTex = null, glowSpriteMat = null, poolMat = null;
-  function glowAssets() {
-    if (glowTex) return;
-    const c = document.createElement('canvas'); c.width = c.height = 128;
-    const x = c.getContext('2d'), g = x.createRadialGradient(64, 64, 0, 64, 64, 64);
-    g.addColorStop(0, 'rgba(255,236,170,1)'); g.addColorStop(0.35, 'rgba(255,200,110,.45)'); g.addColorStop(1, 'rgba(255,180,80,0)');
-    x.fillStyle = g; x.fillRect(0, 0, 128, 128);
-    glowTex = new THREE.CanvasTexture(c);
-    glowSpriteMat = new THREE.SpriteMaterial({ map: glowTex, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false });
-    poolMat = new THREE.MeshBasicMaterial({ map: glowTex, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0.55 });
-  }
-
   function lamp(parent, x, z, y = 3.1) {
-    glowAssets();
-    cyl(0.01, 0.8, 0x888888, x, y + 0.4 + 0.1, z, parent);
-    put(G.cone, 0xfff4d6, 0.5, 0.25, 0.5, x, y, z, parent);
-    put(G.sph, basic(0xfff3b0), 0.14, 0.14, 0.14, x, y - 0.12, z, parent).castShadow = false;
-    const halo = new THREE.Sprite(glowSpriteMat); halo.scale.set(1.6, 1.6, 1); halo.position.set(x, y - 0.15, z); parent.add(halo);
-    const pool = new THREE.Mesh(G.plane, poolMat); pool.scale.set(5, 5, 1); pool.rotation.x = -PI / 2; pool.position.set(x, 0.03, z); parent.add(pool);
+    cyl(0.01, 0.8, 0x999999, x, y + 0.5, z, parent);
+    put(G.cone, 0x1b1b1f, 0.7, 0.32, 0.7, x, y, z, parent);
+    put(G.sph, basic(0xfff3c0), 0.14, 0.14, 0.14, x, y - 0.12, z, parent).castShadow = false;
   }
 
   function buildRoom(scene, L, defs) {
@@ -146,34 +145,58 @@
 
     const floor = new THREE.Mesh(G.plane, new THREE.MeshStandardMaterial({ map: floorTexture(W, D), roughness: 0.9 }));
     floor.scale.set(W, D, 1); floor.rotation.x = -PI / 2; floor.position.set(W / 2, 0, D / 2); floor.receiveShadow = true; root.add(floor);
-    box(W + 6, 0.2, D + 6, 0x151b2c, W / 2, -0.12, D / 2, root); // nền ngoài phòng
+    box(W + 0.8, 0.5, D + 0.8, 0xe6c6d2, W / 2, -0.27, D / 2, root); // đế diorama
 
     // Tường sau + tường trái
-    box(W + 0.4, WALL_H, 0.2, 0xfaf3e8, W / 2, WALL_H / 2, -0.1, root);
-    box(0.2, WALL_H, D + 0.2, 0xf3ece6, -0.1, WALL_H / 2, D / 2 - 0.1, root);
+    box(W + 0.4, WALL_H, 0.2, 0xffffff, W / 2, WALL_H / 2, -0.1, root).material = brickMaterial(W, WALL_H);
+    box(0.2, WALL_H, D + 0.2, 0xf1e8ea, -0.1, WALL_H / 2, D / 2 - 0.1, root);
     box(W, 0.18, 0.06, 0xffffff, W / 2, 0.09, 0.03, root);
     box(0.06, 0.18, D, 0xffffff, 0.03, 0.09, D / 2, root);
 
     const windowAt = (x, z, onBack) => {
-      const g = new THREE.Group(); g.position.set(x, 1.9, z); if (!onBack) g.rotation.y = PI / 2; root.add(g);
-      box(2.0, 1.5, 0.1, 0xffffff, 0, 0, 0.04, g);
-      const glass = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({ color: 0x24407a })); glass.scale.set(1.8, 1.3, 1); glass.position.z = 0.1; g.add(glass);
-      box(0.06, 1.3, 0.04, 0xffffff, 0, 0, 0.12, g); box(1.8, 0.06, 0.04, 0xffffff, 0, 0, 0.12, g);
+      const g = new THREE.Group(); g.position.set(x, 1.8, z); if (!onBack) g.rotation.y = PI / 2; root.add(g);
+      box(2.3, 2.3, 0.14, 0xffffff, 0, 0, 0.04, g);
+      const glass = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({ color: 0xe4f0ff })); glass.scale.set(2.05, 2.05, 1); glass.position.z = 0.12; g.add(glass);
+      box(0.07, 2.05, 0.05, 0xffffff, 0, 0, 0.15, g); box(2.05, 0.07, 0.05, 0xffffff, 0, 0, 0.15, g);
     };
-    for (let x = 5.2; x + 1 < L.xCorr; x += 4.6) windowAt(x, 0.02, true);
+    for (let x = 10.2; x + 1 < L.xCorr; x += 4.6) windowAt(x, 0.02, true);
     for (let z = 3.5; z < D - 2; z += 5) windowAt(0.02, z, false);
 
-    // Bảng ghim
-    box(2.2, 1.3, 0.06, 0x8a5a33, 2.4, 1.95, 0.03, root);
-    box(2.0, 1.1, 0.04, 0xd9a86c, 2.4, 1.95, 0.07, root);
-    ['#ff8fa3', '#8fd3ff', '#ffe08f', '#b6f09c', '#d8b4ff'].forEach((c, k) => box(0.38, 0.38, 0.02, c, 1.7 + k * 0.35, 1.95 + (k % 2 ? 0.2 : -0.18), 0.1, root));
+    // Bảng trắng có giấy ghi chú
+    box(2.5, 1.5, 0.06, 0xd5d9de, 2.4, 1.9, 0.03, root);
+    box(2.36, 1.36, 0.04, 0xffffff, 2.4, 1.9, 0.07, root);
+    for (let k = 0; k < 9; k++) box(0.32, 0.32, 0.02, k % 3 === 2 ? '#ffd966' : '#ffe58a', 1.6 + (k % 3) * 0.45 + (k > 5 ? 0.5 : 0), 2.25 - Math.floor(k / 3) * 0.4, 0.1, root);
+
+    // Màn hình dashboard "PROJECT STATUS"
+    const dc = document.createElement('canvas'); dc.width = 512; dc.height = 300;
+    const dx = dc.getContext('2d');
+    dx.fillStyle = '#fff'; dx.fillRect(0, 0, 512, 300);
+    dx.fillStyle = '#1f2430'; dx.font = 'bold 34px system-ui, sans-serif'; dx.fillText('PROJECT STATUS', 24, 56);
+    dx.fillStyle = '#7a8594'; dx.font = '22px system-ui, sans-serif'; dx.fillText('ISSUES', 24, 100);
+    dx.fillStyle = '#1f2430'; dx.font = 'bold 64px system-ui, sans-serif'; dx.fillText('12', 24, 160);
+    dx.beginPath(); dx.moveTo(24, 280); [[90, 230], [150, 250], [210, 190], [280, 210], [350, 150], [420, 170], [490, 110]].forEach(([px, py]) => dx.lineTo(px, py));
+    dx.lineTo(490, 280); dx.closePath(); dx.fillStyle = 'rgba(70,130,230,.35)'; dx.fill();
+    dx.strokeStyle = '#3b7be0'; dx.lineWidth = 4; dx.stroke();
+    const dash = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(dc) }));
+    dash.scale.set(2.3, 1.35, 1); dash.position.set(6.0, 1.95, 0.09); root.add(dash);
+    box(2.4, 1.45, 0.06, 0x15161a, 6.0, 1.95, 0.04, root);
+
+    // Giá sách
+    box(1.5, 1.9, 0.45, 0xd98a5c, 7.9, 0.95, 0.25, root);
+    const BOOKS = ['#e86a5f', '#5f9be8', '#f2c14e', '#6fc08b', '#a98be0', '#f0a35e'];
+    for (let r = 0; r < 4; r++) for (let k = 0; k < 6; k++) box(0.16, 0.34, 0.3, BOOKS[(r * 3 + k) % 6], 7.38 + k * 0.2, 0.36 + r * 0.44, 0.33, root);
+
+    // Máy in trên bàn console sát tường trái
+    box(0.6, 0.06, 1.5, 0xc89b6d, 0.5, 0.7, D - 3.2, root);
+    [[-0.2, -0.65], [-0.2, 0.65], [0.2, -0.65], [0.2, 0.65]].forEach(([dx2, dz2]) => box(0.05, 0.67, 0.05, 0xa57c52, 0.5 + dx2, 0.335, D - 3.2 + dz2, root));
+    box(0.45, 0.25, 0.55, 0x2f3a44, 0.5, 0.86, D - 3.2, root); box(0.3, 0.03, 0.3, 0xffffff, 0.5, 1.0, D - 3.2, root);
 
     // Khu làm việc
     defs.forEach((d, i) => {
       const { cx, cz } = L.desk[i];
-      const rug = new THREE.Mesh(G.plane, mat(PASTELS[i % PASTELS.length])); rug.scale.set(3.5, 3.1, 1); rug.rotation.x = -PI / 2; rug.position.set(cx, 0.012, cz + 0.5); rug.receiveShadow = true; root.add(rug);
-      box(2.0, 0.06, 1.0, 0xffffff, cx, 0.69, cz, root);
-      [[-0.92, -0.42], [0.92, -0.42], [-0.92, 0.42], [0.92, 0.42]].forEach(([dx, dz]) => box(0.06, 0.66, 0.06, 0xd7dce3, cx + dx, 0.33, cz + dz, root));
+      box(2.0, 0.06, 1.0, 0xd98a5c, cx, 0.69, cz, root);
+      box(2.0, 0.38, 0.05, 0x3f7a66, cx, 0.92, cz - 0.5, root); // vách ngăn xanh lá
+      [[-0.92, -0.42], [0.92, -0.42], [-0.92, 0.42], [0.92, 0.42]].forEach(([dx, dz]) => box(0.06, 0.66, 0.06, 0x2b2d33, cx + dx, 0.33, cz + dz, root));
       box(0.3, 0.02, 0.2, 0x333a46, cx, 0.73, cz - 0.25, root);
       box(0.06, 0.22, 0.06, 0x333a46, cx, 0.84, cz - 0.25, root);
       box(0.92, 0.57, 0.05, 0x333a46, cx, 1.22, cz - 0.28, root);
@@ -204,8 +227,7 @@
       chair(root, p.x, p.z, L.face('meet', i), defs[i].shirt);
     }
     lamp(root, M.x, M.z);
-    const rug = new THREE.Mesh(G.cyl, mat('#e5dbff')); rug.scale.set(M.Ro, 0.01, M.Ro); rug.position.set(M.x, 0.01, M.z); rug.receiveShadow = true; root.add(rug);
-
+    
     // Cây xanh
     plant(root, 0.7, 0.8); plant(root, 0.7, D - 0.7, 1.2); plant(root, L.W - 0.6, D - 0.6, 1.2); plant(root, L.W - 0.6, L.pantryEnd + 0.4);
     for (let r = 0; r < L.ROWS; r++) plant(root, L.workW - 0.4, 3 + r * 4.6 - 0.6, 0.9);
@@ -216,32 +238,25 @@
 
   function buildCharacter(def) {
     const model = new THREE.Group(); model.scale.setScalar(0.85);
-    // Zombie kiểu Plants vs. Zombies: da xám xanh, vest nâu rách, cà vạt theo màu vai trò, mắt trắng lồi, răng hô, tóc vài chỏm.
-    const skin = 0xa9b894, jacket = 0x7b5a3c, pants = 0x6b5d4a;
-    const p = { model };
-    const body = put(G.sph, jacket, 0.42, 0.48, 0.36, 0, 0.98, 0, model);
-    box(0.2, 0.34, 0.04, 0xe8e4d8, 0, 1.05, 0.34, model); // áo sơ mi lộ ra giữa vest
-    box(0.09, 0.3, 0.03, def.shirt, 0, 0.98, 0.37, model); // cà vạt = màu vai trò
-    box(0.14, 0.1, 0.02, 0x4a3524, 0.16, 0.8, 0.33, model).rotation.z = 0.5; // miếng vá rách
-    p.head = pivot(model, 0, 1.78, 0);
-    put(G.sph, skin, 0.36, 0.36, 0.36, 0, 0, 0, p.head);
-    [[-0.12, 0.34, 0.1], [0, 0.38, 0.12], [0.12, 0.33, 0.1]].forEach(([x, y, r]) => put(G.ico, 0x4a3a2a, r, r * 1.6, r, x, y, 0, p.head)); // chỏm tóc
-    put(G.sph, 0xffffff, 0.1, 0.1, 0.08, -0.13, 0.06, 0.3, p.head); put(G.sph, 0x111111, 0.035, 0.035, 0.03, -0.13, 0.06, 0.38, p.head);
-    put(G.sph, 0xffffff, 0.13, 0.13, 0.1, 0.13, 0.07, 0.3, p.head); put(G.sph, 0x111111, 0.04, 0.04, 0.03, 0.14, 0.06, 0.4, p.head); // mắt phải lồi to
-    box(0.2, 0.07, 0.03, 0x3a1010, 0, -0.14, 0.34, p.head);
-    box(0.05, 0.05, 0.02, 0xf4f0e0, -0.04, -0.12, 0.36, p.head); box(0.05, 0.05, 0.02, 0xf4f0e0, 0.04, -0.12, 0.36, p.head); // răng hô
-    // Mũ: Giám đốc đội xô, Trưởng phòng/Tech Lead đội nón cảnh báo (giống Buckethead/Conehead).
-    if (def.id === 'director') { put(G.cyl, 0x9aa3ad, 0.3, 0.34, 0.3, 0, 0.45, 0, p.head); put(G.cyl, 0x7a838d, 0.33, 0.04, 0.33, 0, 0.29, 0, p.head); }
-    else if (def.id === 'head' || def.id === 'tech-lead') put(G.cone, 0xff8a2a, 0.22, 0.5, 0.22, 0, 0.55, 0, p.head);
+    // Kiểu đất sét: mỗi vai một màu đặc (bão hoà hơn màu pastel của ghế), thân tròn, đầu to, mắt to.
+    const col = new THREE.Color(def.shirt); col.offsetHSL(0, 0.3, -0.1);
+    const c = col.getHex(), p = { model };
+    const body = put(G.sph, c, 0.42, 0.5, 0.38, 0, 0.98, 0, model);
+    p.head = pivot(model, 0, 1.8, 0);
+    put(G.sph, c, 0.4, 0.38, 0.38, 0, 0, 0, p.head);
+    put(G.sph, c, 0.09, 0.09, 0.06, -0.38, 0.02, 0, p.head); put(G.sph, c, 0.09, 0.09, 0.06, 0.38, 0.02, 0, p.head); // tai
+    put(G.sph, 0xffffff, 0.12, 0.14, 0.07, -0.14, 0.06, 0.32, p.head); put(G.sph, 0x1a1a24, 0.05, 0.065, 0.04, -0.14, 0.05, 0.38, p.head);
+    put(G.sph, 0xffffff, 0.12, 0.14, 0.07, 0.14, 0.06, 0.32, p.head); put(G.sph, 0x1a1a24, 0.05, 0.065, 0.04, 0.14, 0.05, 0.38, p.head);
+    box(0.1, 0.025, 0.02, 0x1a1a24, 0, -0.12, 0.38, p.head); // miệng nhỏ
     const limb = (side) => {
       const sh = pivot(model, side * 0.46, 1.2, 0);
-      cyl(0.09, 0.35, jacket, 0, -0.175, 0, sh);
+      cyl(0.1, 0.35, c, 0, -0.175, 0, sh);
       const el = pivot(sh, 0, -0.35, 0);
-      cyl(0.075, 0.3, skin, 0, -0.15, 0, el); put(G.sph, skin, 0.09, 0.09, 0.09, 0, -0.32, 0, el);
+      cyl(0.09, 0.3, c, 0, -0.15, 0, el); put(G.sph, c, 0.1, 0.1, 0.1, 0, -0.32, 0, el);
       const hip = pivot(model, side * 0.17, 0.6, 0);
-      cyl(0.11, 0.3, pants, 0, -0.15, 0, hip);
+      cyl(0.12, 0.3, c, 0, -0.15, 0, hip);
       const kn = pivot(hip, 0, -0.3, 0);
-      cyl(0.095, 0.3, pants, 0, -0.15, 0, kn); box(0.17, 0.09, 0.28, 0x2b2420, 0, -0.3, 0.05, kn);
+      cyl(0.11, 0.3, c, 0, -0.15, 0, kn); put(G.sph, c, 0.14, 0.08, 0.2, 0, -0.3, 0.05, kn);
       return { sh, el, hip, kn };
     };
     p.L = limb(-1); p.R = limb(1); p.body = body;
@@ -347,7 +362,7 @@
       this.sit = lerp(this.sit, seated ? 1 : 0, k);
       this.type = lerp(this.type, seated && this.loc === 'desk' && this.status === 'working' ? 1 : 0, k);
       this.rot += angDiff(this.rot, this.moving ? this.heading : this.facing) * (1 - Math.exp(-dt * 9));
-      this.phase += dt * 5.5 * this.walk; // bước chậm, lê lết
+      this.phase += dt * 8 * this.walk;
 
       const { L: l, R: r, head, body } = this.parts, s = this.sit, w = this.walk, ty = this.type;
       const sw = Math.sin(this.phase) * 0.8 * w, br = Math.sin(t * 1.6 + this.i) * 0.03;
@@ -355,17 +370,13 @@
       l.hip.rotation.x = lerp(sw, -PI / 2, s); r.hip.rotation.x = lerp(-sw, -PI / 2, s);
       l.kn.rotation.x = lerp(Math.max(0, -Math.sin(this.phase)) * 0.9 * w, PI / 2, s);
       r.kn.rotation.x = lerp(Math.max(0, Math.sin(this.phase)) * 0.9 * w, PI / 2, s);
-      // Dáng xác sống: tay đưa thẳng ra trước khi đứng/đi, chỉ khi ngồi gõ phím mới hạ xuống.
-      l.sh.rotation.x = lerp(-1.4 + br - sw * 0.2, -1.1, s) + jitter * 0.5 * s;
-      r.sh.rotation.x = lerp(-1.4 + br + sw * 0.2, -1.1, s) - jitter * 0.5 * s;
+      l.sh.rotation.x = lerp(lerp(br, -sw * 0.9, w), -1.1, s) + jitter * 0.5 * s;
+      r.sh.rotation.x = lerp(lerp(br, sw * 0.9, w), -1.1, s) - jitter * 0.5 * s;
       l.el.rotation.x = lerp(-0.1, -0.6 * (0.4 + 0.6 * ty), s) + jitter;
       r.el.rotation.x = lerp(-0.1, -0.6 * (0.4 + 0.6 * ty), s) - jitter;
       body.position.x = jitter * 0.3;
       head.rotation.y = this.loc === 'meet' && !this.moving ? Math.sin(t * 1.3 + this.i) * 0.35 : 0;
-      // Lê bước: nghiêng người lắc lư, đầu lệch một bên (không dùng khi ngồi để không méo tư thế gõ phím).
-      this.model.rotation.z = Math.sin(this.phase) * 0.1 * w * (1 - s);
-      head.rotation.z = 0.3 + Math.sin(t * 0.9 + this.i) * 0.08;
-      this.model.rotation.y = this.rot;
+            this.model.rotation.y = this.rot;
       this.model.position.y = -0.09 * s + Math.abs(Math.sin(this.phase)) * 0.06 * w;
     }
   }
@@ -377,7 +388,7 @@
   class Orbit {
     constructor(camera, dom, L) {
       this.camera = camera; this.dom = dom;
-      this.home = { tx: L.W / 2, ty: 0.5, tz: L.D / 2, r: Math.max(L.W, L.D) * 1.3, th: PI / 4, ph: 0.85 };
+      this.home = { tx: L.W / 2, ty: 0.5, tz: L.D / 2, r: Math.max(L.W, L.D) * 1.9, th: PI / 4, ph: 0.85 };
       this.goal = Object.assign({}, this.home); this.cur = Object.assign({}, this.home);
       this.follow = null; this.drag = null; this.moved = 0;
       dom.addEventListener('pointerdown', (e) => { this.drag = { x: e.clientX, y: e.clientY }; this.moved = 0; dom.setPointerCapture(e.pointerId); });
@@ -388,7 +399,7 @@
         this.goal.ph = Math.min(1.4, Math.max(0.3, this.goal.ph - dy * 0.006));
       });
       dom.addEventListener('pointerup', () => { this.drag = null; });
-      dom.addEventListener('wheel', (e) => { e.preventDefault(); this.goal.r = Math.min(45, Math.max(4, this.goal.r * Math.exp(e.deltaY * 0.001))); }, { passive: false });
+      dom.addEventListener('wheel', (e) => { e.preventDefault(); this.goal.r = Math.min(80, Math.max(4, this.goal.r * Math.exp(e.deltaY * 0.001))); }, { passive: false });
     }
     focus(agent) { this.follow = agent; this.goal.r = 7; this.goal.ph = 1.0; }
     reset() { this.follow = null; Object.assign(this.goal, this.home); }
@@ -414,7 +425,9 @@
     const a = agents.find((x) => x.def.id === e.id);
     if (!a) return;
     addHistory(e.id, e);
+    const prev = a.status;
     a.setStatus(e.status, e.text);
+    trackEvent(e, prev);
     renderList(); if (focusId === e.id) renderDetail();
   }
 
@@ -507,6 +520,7 @@
     es.onerror = () => { setConn(false); if (es.readyState === 2) { es.close(); setTimeout(() => connect(false), 2000); } };
     es.addEventListener('init', (ev) => {
       const d = JSON.parse(ev.data); histories = d.history || {}; setRunning(!!d.running);
+      tasks = d.tasks || []; actLog = (d.log || []).slice().reverse(); renderCenter();
       agents.forEach((a) => {
         const s = d.states[a.def.id]; if (!s) return;
         a.setStatus(s.status, s.text);
@@ -518,6 +532,7 @@
       const d = JSON.parse(ev.data); setRunning(d.running);
       if (!d.running) showResult(d);
     });
+    es.addEventListener('task', (ev) => upsertTask(JSON.parse(ev.data)));
     es.addEventListener('state', (ev) => applyEvent(JSON.parse(ev.data)));
   }
 
@@ -526,6 +541,8 @@
     const ev = (i, status, text) => agents[i % agents.length] && applyEvent({ id: agents[i % agents.length].def.id, status, text, ts: Date.now() });
     const script = [[600, 0, 'working', 'Edit App.tsx'], [1500, 3, 'working', 'Write schema.sql'], [2400, 1, 'waiting', 'Waiting for you'], [3300, 5, 'working', 'Edit login.test.ts']];
     script.forEach(([ms, i, s, t]) => setTimeout(() => ev(i, s, t), ms));
+    setTimeout(() => upsertTask({ id: 'demo1', title: 'Demo: viết SRS đăng nhập', status: 'doing', ts: Date.now(), output: '' }), 1000);
+    setTimeout(() => upsertTask({ id: 'demo1', title: 'Demo: viết SRS đăng nhập', status: 'done', ts: Date.now(), output: 'Đã viết xong SRS (demo).' }), 12000);
     setInterval(() => {
       const a = agents[Math.floor(Math.random() * agents.length)];
       if (a.status === 'idle') ev(a.i, Math.random() < 0.8 ? 'working' : 'waiting', Math.random() < 0.8 ? texts[Math.floor(Math.random() * texts.length)] : 'Waiting for you');
@@ -533,17 +550,103 @@
     }, 2200);
   }
 
+
+  // ---------- Command Center: Tasks / Duyệt / Hoạt động + phong bì bay giữa các bàn ----------
+  let tasks = [], actLog = [], approvals = [], ctab = 'tasks', sceneRef = null;
+  const envelopes = [];
+
+  function upsertTask(t) {
+    const i = tasks.findIndex((x) => x.id === t.id);
+    if (i >= 0) tasks[i] = t; else tasks.push(t);
+    renderCenter();
+  }
+
+  function renderCenter() {
+    const body = $('cbody'); if (!body) return;
+    document.querySelectorAll('#ctabs button').forEach((b) => b.classList.toggle('on', b.dataset.t === ctab));
+    $('abadge').textContent = approvals.length ? '(' + approvals.length + ')' : '';
+    body.textContent = '';
+    const row = () => { const r = document.createElement('div'); r.className = 'crow'; return r; };
+    const empty = (m) => { const r = row(); r.textContent = m; body.append(r); };
+    if (ctab === 'tasks') {
+      if (!tasks.length) empty('Chưa có task. Gửi prompt ở ô nhập phía dưới.');
+      tasks.slice().reverse().forEach((t) => {
+        const wrap = document.createElement('div'), r = row();
+        const tag = document.createElement('span'); tag.className = 'tag ' + t.status; tag.textContent = t.status;
+        const title = document.createElement('span'); title.className = 't'; title.textContent = t.title;
+        r.append(tag, title); wrap.append(r);
+        if (t.output) { const pre = document.createElement('pre'); pre.textContent = t.output; wrap.append(pre); }
+        body.append(wrap);
+      });
+    } else if (ctab === 'approvals') {
+      if (!approvals.length) empty('Không có việc nào đang chờ bạn.');
+      approvals.forEach((a, i) => {
+        const r = row(), t = document.createElement('span'); t.className = 't'; t.textContent = a.role + ': ' + a.text;
+        const small = document.createElement('small'); small.textContent = fmt(a.ts);
+        const b = document.createElement('button'); b.textContent = 'Đã xử lý'; b.onclick = () => { approvals.splice(i, 1); renderCenter(); };
+        r.append(t, small, b); body.append(r);
+      });
+      const note = row(); note.innerHTML = '<small>Duyệt/cấp quyền thật phải làm trong Claude Code; mục này chỉ nhắc bạn.</small>'; body.append(note);
+    } else {
+      if (!actLog.length) empty('Chưa có hoạt động.');
+      actLog.forEach((e) => {
+        const r = row(), t = document.createElement('span'); t.className = 't';
+        t.textContent = (roleName(e.id)) + ' · ' + e.status + (e.text ? ' · ' + e.text : '');
+        const small = document.createElement('small'); small.textContent = fmt(e.ts);
+        r.append(t, small); body.append(r);
+      });
+    }
+  }
+
+  const roleName = (id) => { const a = agents.find((x) => x.def.id === id); return a ? a.def.role : id; };
+
+  // Ghi nhận một thay đổi trạng thái vào nhật ký, danh sách chờ duyệt và (khi bắt đầu việc) bắn phong bì từ Giám đốc.
+  function trackEvent(e, prevStatus) {
+    actLog.unshift({ id: e.id, status: e.status, text: e.text, ts: e.ts });
+    if (actLog.length > 60) actLog.pop();
+    approvals = approvals.filter((a) => a.id !== e.id);
+    if (e.status === 'waiting') approvals.push({ id: e.id, role: roleName(e.id), text: e.text, ts: e.ts });
+    if (e.status === 'working' && prevStatus === 'idle') sendEnvelope(e.id);
+    if (!$('center').hidden) renderCenter(); else $('abadge').textContent = approvals.length ? '(' + approvals.length + ')' : '';
+  }
+
+  function sendEnvelope(toId) {
+    if (!sceneRef) return;
+    const from = agents.find((a) => a.def.id === 'director') || agents[0], to = agents.find((a) => a.def.id === toId);
+    if (!to || from === to) return;
+    const m = new THREE.Group();
+    put(G.box, 0xffffff, 0.28, 0.04, 0.2, 0, 0, 0, m); put(G.box, 0xe0605a, 0.1, 0.045, 0.06, 0, 0.01, 0, m);
+    sceneRef.add(m);
+    envelopes.push({ m, from, to, t: 0 });
+  }
+
+  function updateEnvelopes(dt) {
+    for (let i = envelopes.length - 1; i >= 0; i--) {
+      const e = envelopes[i]; e.t += dt / 1.4;
+      if (e.t >= 1) { sceneRef.remove(e.m); envelopes.splice(i, 1); continue; }
+      const a = e.from.group.position, b = e.to.group.position;
+      e.m.position.set(lerp(a.x, b.x, e.t), 2.2 + Math.sin(e.t * PI) * 1.4, lerp(a.z, b.z, e.t));
+      e.m.rotation.y += dt * 6;
+    }
+  }
+
+  document.addEventListener('click', (ev) => {
+    const t = ev.target;
+    if (t.id === 'ctoggle') { $('center').hidden = !$('center').hidden; renderCenter(); }
+    else if (t.closest && t.closest('#ctabs') && t.dataset.t) { ctab = t.dataset.t; renderCenter(); }
+  });
+
   async function main() {
     const roster = await (await fetch('/roster')).json();
     const L = computeLayout(roster.length); L.screens = [];
 
-    const renderer = new THREE.WebGLRenderer({ canvas: $('c'), antialias: true });
+    const renderer = new THREE.WebGLRenderer({ canvas: $('c'), antialias: true, alpha: true });
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    const scene = new THREE.Scene(); scene.background = new THREE.Color(0x0b1020);
-    const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 200);
+    const scene = new THREE.Scene(); sceneRef = scene; 
+    const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 300);
 
-    scene.add(new THREE.HemisphereLight(0x8fa6ff, 0x20263a, 0.4));
-    const sun = new THREE.DirectionalLight(0xaabbff, 0.3); // ánh trăng
+    scene.add(new THREE.HemisphereLight(0xffffff, 0xcfd4da, 0.55));
+    const sun = new THREE.DirectionalLight(0xfff0dc, 0.55); // nắng
     const span = Math.max(L.W, L.D) * 0.75;
     sun.position.set(L.W * 0.9, 20, L.D * 1.1); sun.target.position.set(L.W / 2, 0, L.D / 2);
     sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0006;
@@ -555,8 +658,9 @@
     orbit = new Orbit(camera, renderer.domElement, L);
     renderList();
 
-    function resize() {
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        function resize() {
+      const pr = Math.min(window.devicePixelRatio || 1, 2);
+      renderer.setPixelRatio(pr);
       renderer.setSize(window.innerWidth, window.innerHeight, false);
       camera.aspect = window.innerWidth / window.innerHeight;
       // Dịch khung hình sang trái để bảng WORKERS không che pantry.
@@ -584,6 +688,7 @@
       const dt = Math.min(0.05, (now - last) / 1000); last = now;
       agents.forEach((a) => a.update(dt, now / 1000));
       orbit.update(dt);
+      updateEnvelopes(dt);
       renderer.render(scene, camera);
     }
     // Tab ẩn thì dừng render để khỏi tốn pin.

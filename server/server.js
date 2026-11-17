@@ -49,7 +49,12 @@ function defaultRunner(text, done) {
 function createApp({ roster, publicDir = path.join(__dirname, '..', 'public'), idleMs = 8000, runner = defaultRunner }) {
   const clients = new Set();
   const send = (res, name, data) => res.write(`event: ${name}\ndata: ${JSON.stringify(data)}\n\n`);
-  const tracker = createTracker(roster, (e) => clients.forEach((c) => send(c, 'state', e)), idleMs);
+  const log = [];   // nhật ký hoạt động gần nhất (cũ -> mới)
+  const tasks = []; // mỗi prompt gửi từ ô nhập là một task trong Command Center
+  const tracker = createTracker(roster, (e) => {
+    log.push(e); if (log.length > 60) log.shift();
+    clients.forEach((c) => send(c, 'state', e));
+  }, idleMs);
   const root = path.resolve(publicDir);
   let port = 0;
   let running = false;
@@ -67,7 +72,7 @@ function createApp({ roster, publicDir = path.join(__dirname, '..', 'public'), i
     if (url.pathname === '/stream') {
       res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
       res.write('retry: 2000\n\n');
-      send(res, 'init', { roster, running, ...tracker.snapshot() });
+      send(res, 'init', { roster, running, tasks, log, ...tracker.snapshot() });
       clients.add(res);
       req.on('close', () => clients.delete(res));
       return;
@@ -107,7 +112,16 @@ function createApp({ roster, publicDir = path.join(__dirname, '..', 'public'), i
       broadcast('run', { running: true });
       // claude khởi động mất vài giây trước khi hook đầu tiên bắn: cho PM nhận việc ngay để người dùng thấy phản hồi.
       tracker.set((roster.find((r) => r.id === 'director') || roster.find((r) => r.id === 'pm') || roster[0]).id, 'working', 'Nhận việc…');
-      runner(text, (code, output) => { running = false; tracker.handle({ hook_event_name: 'Stop' }); broadcast('run', { running: false, code, output: output || '' }); });
+      const task = { id: Date.now().toString(36), title: text.split('\n')[0].slice(0, 80), status: 'doing', ts: Date.now(), output: '' };
+      tasks.push(task); if (tasks.length > 30) tasks.shift();
+      broadcast('task', task);
+      runner(text, (code, output) => {
+        running = false;
+        Object.assign(task, { status: code === 0 ? 'done' : 'failed', output: (output || '').slice(0, 4000) });
+        broadcast('task', task);
+        tracker.handle({ hook_event_name: 'Stop' });
+        broadcast('run', { running: false, code, output: output || '' });
+      });
       res.writeHead(202, { 'Content-Type': 'application/json' }).end('{"ok":true}');
     }, MAX_PROMPT_BODY);
   }
