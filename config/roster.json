@@ -1,11 +1,19 @@
 [
-  { "id": "pm",        "role": "PM",        "shirt": "#f4a6b8", "hair": "#3b2a20", "skin": "#f5cfa8", "match": ["\\bpm\\b", "project.?manager"] },
-  { "id": "po",        "role": "PO",        "shirt": "#f7c873", "hair": "#6b4423", "skin": "#e8b98f", "match": ["\\bpo\\b", "product.?owner"] },
-  { "id": "ba",        "role": "BA",        "shirt": "#a8d5ba", "hair": "#2b2b2b", "skin": "#f5cfa8", "match": ["\\bba\\b", "analyst", "explore", "research"] },
-  { "id": "dev-fe",    "role": "DEV FE",    "shirt": "#9ec9f5", "hair": "#1f1f2e", "skin": "#f0c29a", "match": ["\\bfe\\b", "front.?end", "ui.?dev"] },
-  { "id": "dev-be",    "role": "DEV BE",    "shirt": "#b7a6f2", "hair": "#4a3426", "skin": "#e0aa80", "match": ["\\bbe\\b", "back.?end", "\\bapi\\b"] },
-  { "id": "qc",        "role": "QC",        "shirt": "#f5b895", "hair": "#a0522d", "skin": "#f5cfa8", "match": ["\\bqc\\b", "\\bqa\\b", "test", "review"] },
-  { "id": "designer",  "role": "Designer",  "shirt": "#f29ac2", "hair": "#7b3fa0", "skin": "#f8d7b8", "match": ["design", "\\bux\\b"] },
-  { "id": "tech-lead", "role": "Tech Lead", "shirt": "#7fb7a4", "hair": "#555555", "skin": "#e8b98f", "match": ["tech.?lead", "architect", "general-purpose", "\\blead\\b"] },
-  { "id": "devops",    "role": "Devops",    "shirt": "#c3c9d4", "hair": "#222222", "skin": "#d9a37a", "match": ["devops", "\\bops\\b", "deploy", "infra"] }
+  { "id": "director",    "role": "Giám đốc",   "shirt": "#2f3a56", "hair": "#c9c9c9", "skin": "#e8b98f", "match": ["director", "\\bcto\\b", "\\bceo\\b", "giam.?doc"] },
+  { "id": "head",        "role": "Trưởng phòng", "shirt": "#a0522d", "hair": "#2b2b2b", "skin": "#e0aa80", "match": ["\\bhead\\b", "manager", "truong.?phong", "supervisor"] },
+  { "id": "pm",         "role": "PM",          "shirt": "#f4a6b8", "hair": "#3b2a20", "skin": "#f5cfa8", "match": ["\\bpm\\b", "project.?manager"] },
+  { "id": "po",          "role": "PO",          "shirt": "#f7c873", "hair": "#6b4423", "skin": "#e8b98f", "match": ["\\bpo\\b", "product.?owner"] },
+  { "id": "ba",          "role": "BA",          "shirt": "#a8d5ba", "hair": "#2b2b2b", "skin": "#f5cfa8", "match": ["\\bba\\b", "analyst", "explore", "research"] },
+  { "id": "dev-fe",      "role": "DEV FE",      "shirt": "#9ec9f5", "hair": "#1f1f2e", "skin": "#f0c29a", "match": ["\\bfe\\b", "front.?end", "ui.?dev"] },
+  { "id": "dev-be",      "role": "DEV BE",      "shirt": "#b7a6f2", "hair": "#4a3426", "skin": "#e0aa80", "match": ["\\bbe\\b", "back.?end", "\\bapi\\b"] },
+  { "id": "qc",          "role": "QC",          "shirt": "#f5b895", "hair": "#a0522d", "skin": "#f5cfa8", "match": ["\\bqc\\b", "\\bqa\\b", "test"] },
+  { "id": "designer",    "role": "Designer",    "shirt": "#f29ac2", "hair": "#7b3fa0", "skin": "#f8d7b8", "match": ["design", "\\bux\\b"] },
+  { "id": "tech-lead",   "role": "Tech Lead",   "shirt": "#7fb7a4", "hair": "#555555", "skin": "#e8b98f", "match": ["tech.?lead", "general-purpose", "\\blead\\b", "^(?!.*security).*review"] },
+  { "id": "sa",          "role": "Solution Architect", "shirt": "#5b8def", "hair": "#444444", "skin": "#f0c29a", "match": ["architect", "\\bsa\\b", "solution"] },
+  { "id": "devops",      "role": "Devops",      "shirt": "#c3c9d4", "hair": "#222222", "skin": "#d9a37a", "match": ["devops", "\\bops\\b", "deploy", "infra"] },
+  { "id": "security",    "role": "Security",    "shirt": "#ff9f9f", "hair": "#1b1b1b", "skin": "#f0c29a", "match": ["security", "\\bsec\\b", "pentest", "vuln"] },
+  { "id": "dba",         "role": "DBA",         "shirt": "#8fd0d6", "hair": "#5a3a22", "skin": "#e8b98f", "match": ["\\bdba\\b", "database", "\\bdata\\b", "schema"] },
+  { "id": "mobile",      "role": "Mobile Dev",  "shirt": "#ffd08a", "hair": "#2a2a40", "skin": "#f5cfa8", "match": ["mobile", "android", "\\bios\\b", "react.?native", "flutter"] },
+  { "id": "tech-writer", "role": "Tech Writer", "shirt": "#d4b8f0", "hair": "#8a4b2a", "skin": "#f8d7b8", "match": ["writer", "\\bdocs?\\b", "documentation"] },
+  { "id": "sre",         "role": "SRE",         "shirt": "#9ee0b0", "hair": "#333333", "skin": "#d9a37a", "match": ["\\bsre\\b", "support", "monitor", "incident", "on.?call"] }
 ]

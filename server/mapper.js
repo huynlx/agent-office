@@ -4,14 +4,26 @@
 const KNOWN = new Set(['PreToolUse', 'PostToolUse', 'SubagentStart', 'SubagentStop', 'Notification', 'Stop']);
 
 /** id vai trò mà quy tắc tool/đường dẫn nhắm tới (phải khớp config/roster.json). */
-const ROLE = { FE: 'dev-fe', BE: 'dev-be', QC: 'qc', DEVOPS: 'devops', BA: 'ba', TL: 'tech-lead' };
+const ROLE = { FE: 'dev-fe', BE: 'dev-be', QC: 'qc', DEVOPS: 'devops', BA: 'ba', TL: 'tech-lead', SEC: 'security', DBA: 'dba', MOBILE: 'mobile', TW: 'tech-writer', SRE: 'sre' };
+// Vai mới thiếu trong roster thì nhường việc cho vai cũ gần nhất thay vì rơi hết về Tech Lead.
+const FALLBACK = { sa: 'tech-lead',director: 'tech-lead', head: 'tech-lead',security: 'tech-lead', dba: 'dev-be', mobile: 'dev-fe', 'tech-writer': 'ba', sre: 'devops' };
 
 // Thứ tự quan trọng: devops trước QC để `.github/workflows/test.yml` thuộc Devops.
 const PATH_RULES = [
   [/(^|\/)(dockerfile[^/]*|\.github\/.*|[^/]*\.ya?ml)$/i, ROLE.DEVOPS],
+  // Tài liệu kiến trúc/ADR là việc của Solution Architect; đứng đầu để `architecture/spec.md` không bị coi là SRS.
+  [/(^|\/)(architecture|adr|adrs)\/|[^/]*(architecture|(^|[-_])adr[-_\d])[^/]*\.mdx?$/i, 'sa'],
+  // Hướng dẫn sử dụng là việc của Tech Writer; đứng trước BA để `spec-guide.md` không bị coi là SRS.
+  [/[^/]*(guide|manual|tutorial|how-?to|huong-?dan|readme)[^/]*\.mdx?$/i, ROLE.TW],
+  // Tài liệu yêu cầu (SRS, BRD, spec, user story) là việc của BA; đặt trước QC để `srs-spec.md` không bị tính là test.
+  [/(^|\/)(requirements?|specs?)\/|[^/]*(srs|brd|requirement|user[-_ ]?stor|spec)[^/]*\.mdx?$/i, ROLE.BA],
   [/(^|\/)(tests?|__tests__)\/|(^|[._-])(test|spec)s?([._-]|$)[^/]*$/i, ROLE.QC],
-  [/\.mdx?$|(^|\/)docs\//i, ROLE.BA],
-  [/\.sql$|(^|\/)(server|api)\//i, ROLE.BE],
+  [/(^|\/)(auth|security|crypto)[^/]*\/|\.(pem|key|crt)$/i, ROLE.SEC],
+  [/\.(swift|kt|dart)$|(^|\/)(android|ios|mobile)\//i, ROLE.MOBILE],
+  [/(^|\/)(monitoring|alerts?|grafana|prometheus|runbooks?)\/|\.log$/i, ROLE.SRE],
+  [/\.mdx?$|(^|\/)docs\//i, ROLE.TW],
+  [/\.sql$|(^|\/)(migrations?|schema|prisma)\//i, ROLE.DBA],
+  [/(^|\/)(server|api)\//i, ROLE.BE],
   [/\.(tsx|jsx|css|scss|html)$/i, ROLE.FE],
 ];
 
@@ -34,7 +46,7 @@ function matchersOf(roster) {
 
 /** Lấy vai trò theo id; không có thì Tech Lead; không có nữa thì người đầu tiên. */
 function pickRole(roster, id) {
-  return roster.find((r) => r.id === id) || roster.find((r) => r.id === ROLE.TL) || roster[0];
+  return roster.find((r) => r.id === id) || roster.find((r) => r.id === FALLBACK[id]) || roster.find((r) => r.id === ROLE.TL) || roster[0];
 }
 
 /** Làm sạch text hiển thị: bỏ ký tự điều khiển, cắt 40 ký tự. */
@@ -66,10 +78,13 @@ function findBySubagent(p, roster) {
  * roleForTool('Edit', { file_path: 'src/App.tsx' }); // 'dev-fe'
  */
 function roleForTool(tool, input = {}) {
+  // Giao việc/lập kế hoạch là việc của Trưởng phòng; chốt kế hoạch/hỏi quyết định là của Giám đốc.
+  if (/^(Task|Agent|TodoWrite|TaskCreate|TaskUpdate)$/.test(tool)) return 'head';
+  if (tool === 'ExitPlanMode' || tool === 'AskUserQuestion') return 'director';
   if (tool === 'Read' || tool === 'Grep' || tool === 'Glob') return ROLE.BA;
   if (tool === 'Bash') {
     const first = String(input.command || '').trim().split(/\s+/)[0];
-    if (first === 'git') return ROLE.TL;
+    if (first === 'git' || first === 'gh') return ROLE.TL; // git/gh: diff, commit, PR = review của Tech Lead
     if (/^(docker|docker-compose|kubectl|terraform|helm)$/.test(first)) return ROLE.DEVOPS;
     return ROLE.TL;
   }
@@ -158,6 +173,8 @@ function createTracker(roster, emit, idleMs = 8000) {
   }
 
   return {
+    /** Đặt trạng thái trực tiếp một agent (server dùng để phản hồi tức thì khi nhận prompt). */
+    set(id, status, text) { if (states.has(id)) { lastId = id; set(id, status, text); } },
     handle(payload) {
       const ev = mapEvent(payload, roster, { lastId });
       if (!ev) return null;

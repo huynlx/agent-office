@@ -119,10 +119,26 @@
       put(G.ico, k % 2 ? 0x6fcf97 : 0x8bdc9e, r, r, r, px, py, pz, g));
   }
 
+  // Ban đêm: không dùng PointLight (17+ đèn sẽ rất nặng); giả ánh sáng bằng quầng sáng cộng màu + vệt sáng trên sàn.
+  let glowTex = null, glowSpriteMat = null, poolMat = null;
+  function glowAssets() {
+    if (glowTex) return;
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const x = c.getContext('2d'), g = x.createRadialGradient(64, 64, 0, 64, 64, 64);
+    g.addColorStop(0, 'rgba(255,236,170,1)'); g.addColorStop(0.35, 'rgba(255,200,110,.45)'); g.addColorStop(1, 'rgba(255,180,80,0)');
+    x.fillStyle = g; x.fillRect(0, 0, 128, 128);
+    glowTex = new THREE.CanvasTexture(c);
+    glowSpriteMat = new THREE.SpriteMaterial({ map: glowTex, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false });
+    poolMat = new THREE.MeshBasicMaterial({ map: glowTex, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0.55 });
+  }
+
   function lamp(parent, x, z, y = 3.1) {
+    glowAssets();
     cyl(0.01, 0.8, 0x888888, x, y + 0.4 + 0.1, z, parent);
     put(G.cone, 0xfff4d6, 0.5, 0.25, 0.5, x, y, z, parent);
     put(G.sph, basic(0xfff3b0), 0.14, 0.14, 0.14, x, y - 0.12, z, parent).castShadow = false;
+    const halo = new THREE.Sprite(glowSpriteMat); halo.scale.set(1.6, 1.6, 1); halo.position.set(x, y - 0.15, z); parent.add(halo);
+    const pool = new THREE.Mesh(G.plane, poolMat); pool.scale.set(5, 5, 1); pool.rotation.x = -PI / 2; pool.position.set(x, 0.03, z); parent.add(pool);
   }
 
   function buildRoom(scene, L, defs) {
@@ -130,7 +146,7 @@
 
     const floor = new THREE.Mesh(G.plane, new THREE.MeshStandardMaterial({ map: floorTexture(W, D), roughness: 0.9 }));
     floor.scale.set(W, D, 1); floor.rotation.x = -PI / 2; floor.position.set(W / 2, 0, D / 2); floor.receiveShadow = true; root.add(floor);
-    box(W + 6, 0.2, D + 6, 0xc9d8e2, W / 2, -0.12, D / 2, root); // nền ngoài phòng
+    box(W + 6, 0.2, D + 6, 0x151b2c, W / 2, -0.12, D / 2, root); // nền ngoài phòng
 
     // Tường sau + tường trái
     box(W + 0.4, WALL_H, 0.2, 0xfaf3e8, W / 2, WALL_H / 2, -0.1, root);
@@ -141,7 +157,7 @@
     const windowAt = (x, z, onBack) => {
       const g = new THREE.Group(); g.position.set(x, 1.9, z); if (!onBack) g.rotation.y = PI / 2; root.add(g);
       box(2.0, 1.5, 0.1, 0xffffff, 0, 0, 0.04, g);
-      const glass = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({ color: 0xcfeeff })); glass.scale.set(1.8, 1.3, 1); glass.position.z = 0.1; g.add(glass);
+      const glass = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({ color: 0x24407a })); glass.scale.set(1.8, 1.3, 1); glass.position.z = 0.1; g.add(glass);
       box(0.06, 1.3, 0.04, 0xffffff, 0, 0, 0.12, g); box(1.8, 0.06, 0.04, 0xffffff, 0, 0, 0.12, g);
     };
     for (let x = 5.2; x + 1 < L.xCorr; x += 4.6) windowAt(x, 0.02, true);
@@ -200,21 +216,32 @@
 
   function buildCharacter(def) {
     const model = new THREE.Group(); model.scale.setScalar(0.85);
-    const shirt = def.shirt, skin = def.skin, p = { model };
-    const body = put(G.sph, shirt, 0.42, 0.48, 0.36, 0, 0.98, 0, model);
+    // Zombie kiểu Plants vs. Zombies: da xám xanh, vest nâu rách, cà vạt theo màu vai trò, mắt trắng lồi, răng hô, tóc vài chỏm.
+    const skin = 0xa9b894, jacket = 0x7b5a3c, pants = 0x6b5d4a;
+    const p = { model };
+    const body = put(G.sph, jacket, 0.42, 0.48, 0.36, 0, 0.98, 0, model);
+    box(0.2, 0.34, 0.04, 0xe8e4d8, 0, 1.05, 0.34, model); // áo sơ mi lộ ra giữa vest
+    box(0.09, 0.3, 0.03, def.shirt, 0, 0.98, 0.37, model); // cà vạt = màu vai trò
+    box(0.14, 0.1, 0.02, 0x4a3524, 0.16, 0.8, 0.33, model).rotation.z = 0.5; // miếng vá rách
     p.head = pivot(model, 0, 1.78, 0);
     put(G.sph, skin, 0.36, 0.36, 0.36, 0, 0, 0, p.head);
-    put(G.sph, def.hair, 0.39, 0.34, 0.39, 0, 0.1, -0.05, p.head);
-    put(G.sph, 0x222831, 0.05, 0.06, 0.05, -0.12, 0, 0.33, p.head); put(G.sph, 0x222831, 0.05, 0.06, 0.05, 0.12, 0, 0.33, p.head);
+    [[-0.12, 0.34, 0.1], [0, 0.38, 0.12], [0.12, 0.33, 0.1]].forEach(([x, y, r]) => put(G.ico, 0x4a3a2a, r, r * 1.6, r, x, y, 0, p.head)); // chỏm tóc
+    put(G.sph, 0xffffff, 0.1, 0.1, 0.08, -0.13, 0.06, 0.3, p.head); put(G.sph, 0x111111, 0.035, 0.035, 0.03, -0.13, 0.06, 0.38, p.head);
+    put(G.sph, 0xffffff, 0.13, 0.13, 0.1, 0.13, 0.07, 0.3, p.head); put(G.sph, 0x111111, 0.04, 0.04, 0.03, 0.14, 0.06, 0.4, p.head); // mắt phải lồi to
+    box(0.2, 0.07, 0.03, 0x3a1010, 0, -0.14, 0.34, p.head);
+    box(0.05, 0.05, 0.02, 0xf4f0e0, -0.04, -0.12, 0.36, p.head); box(0.05, 0.05, 0.02, 0xf4f0e0, 0.04, -0.12, 0.36, p.head); // răng hô
+    // Mũ: Giám đốc đội xô, Trưởng phòng/Tech Lead đội nón cảnh báo (giống Buckethead/Conehead).
+    if (def.id === 'director') { put(G.cyl, 0x9aa3ad, 0.3, 0.34, 0.3, 0, 0.45, 0, p.head); put(G.cyl, 0x7a838d, 0.33, 0.04, 0.33, 0, 0.29, 0, p.head); }
+    else if (def.id === 'head' || def.id === 'tech-lead') put(G.cone, 0xff8a2a, 0.22, 0.5, 0.22, 0, 0.55, 0, p.head);
     const limb = (side) => {
       const sh = pivot(model, side * 0.46, 1.2, 0);
-      cyl(0.09, 0.35, shirt, 0, -0.175, 0, sh);
+      cyl(0.09, 0.35, jacket, 0, -0.175, 0, sh);
       const el = pivot(sh, 0, -0.35, 0);
       cyl(0.075, 0.3, skin, 0, -0.15, 0, el); put(G.sph, skin, 0.09, 0.09, 0.09, 0, -0.32, 0, el);
       const hip = pivot(model, side * 0.17, 0.6, 0);
-      cyl(0.11, 0.3, 0x4a5568, 0, -0.15, 0, hip);
+      cyl(0.11, 0.3, pants, 0, -0.15, 0, hip);
       const kn = pivot(hip, 0, -0.3, 0);
-      cyl(0.095, 0.3, 0x4a5568, 0, -0.15, 0, kn); box(0.17, 0.09, 0.28, 0x2b2f3a, 0, -0.3, 0.05, kn);
+      cyl(0.095, 0.3, pants, 0, -0.15, 0, kn); box(0.17, 0.09, 0.28, 0x2b2420, 0, -0.3, 0.05, kn);
       return { sh, el, hip, kn };
     };
     p.L = limb(-1); p.R = limb(1); p.body = body;
@@ -247,7 +274,7 @@
       this.label = makeCanvasSprite(384, 96, 1.6, 0.4); this.label.s.position.y = 2.3; this.group.add(this.label.s);
       this.bubble = makeCanvasSprite(512, 128, 2.4, 0.6); this.bubble.s.position.y = 2.85; this.bubble.s.visible = false; this.group.add(this.bubble.s);
       this.sit = 0; this.walk = 0; this.type = 0; this.phase = 0; this.rot = PI; this.facing = PI;
-      this.moving = false; this.from = 'pantry'; this.to = 'pantry'; this.pts = []; this.idx = 0; this.loc = 'pantry'; this.heading = PI;
+      this.moving = false; this.arrivedAt = 0; this.from = 'pantry'; this.to = 'pantry'; this.pts = []; this.idx = 0; this.loc = 'pantry'; this.heading = PI;
       this.snap('pantry');
       this.drawLabel(); this.drawBubble();
     }
@@ -294,7 +321,9 @@
     }
     update(dt, t) {
       const want = KIND[this.status];
-      if (!this.moving && want !== this.loc) this.startPath(want);
+      // Việc ngắn (vài giây) vẫn phải ngồi bàn đủ lâu để người xem thấy; rời bàn sau tối thiểu 3s.
+      const held = this.loc === 'desk' && t - this.arrivedAt < 3;
+      if (!this.moving && want !== this.loc && !held) this.startPath(want);
       else if (this.moving && want === this.from && want !== this.to) {
         // Đổi ý giữa đường: quay lại theo chính những điểm đã đi qua để không xuyên đồ đạc.
         const cur = this.group.position;
@@ -303,13 +332,13 @@
       }
 
       if (this.moving) {
-        let step = 2.7 * dt; const pos = this.group.position;
+        let step = 6 * dt; const pos = this.group.position;
         while (step > 0 && this.idx < this.pts.length) {
           const tp = this.pts[this.idx], dx = tp.x - pos.x, dz = tp.z - pos.z, d = Math.hypot(dx, dz);
           if (d > 1e-4) this.heading = Math.atan2(dx, dz);
           if (d <= step) { pos.x = tp.x; pos.z = tp.z; step -= d; this.idx++; } else { pos.x += (dx / d) * step; pos.z += (dz / d) * step; step = 0; }
         }
-        if (this.idx >= this.pts.length) { this.moving = false; this.loc = this.to; this.facing = this.L.face(this.loc, this.i); }
+        if (this.idx >= this.pts.length) { this.moving = false; this.loc = this.to; this.arrivedAt = t; this.facing = this.L.face(this.loc, this.i); }
       }
 
       const k = 1 - Math.exp(-dt * 8);
@@ -318,7 +347,7 @@
       this.sit = lerp(this.sit, seated ? 1 : 0, k);
       this.type = lerp(this.type, seated && this.loc === 'desk' && this.status === 'working' ? 1 : 0, k);
       this.rot += angDiff(this.rot, this.moving ? this.heading : this.facing) * (1 - Math.exp(-dt * 9));
-      this.phase += dt * 9 * this.walk;
+      this.phase += dt * 5.5 * this.walk; // bước chậm, lê lết
 
       const { L: l, R: r, head, body } = this.parts, s = this.sit, w = this.walk, ty = this.type;
       const sw = Math.sin(this.phase) * 0.8 * w, br = Math.sin(t * 1.6 + this.i) * 0.03;
@@ -326,12 +355,16 @@
       l.hip.rotation.x = lerp(sw, -PI / 2, s); r.hip.rotation.x = lerp(-sw, -PI / 2, s);
       l.kn.rotation.x = lerp(Math.max(0, -Math.sin(this.phase)) * 0.9 * w, PI / 2, s);
       r.kn.rotation.x = lerp(Math.max(0, Math.sin(this.phase)) * 0.9 * w, PI / 2, s);
-      l.sh.rotation.x = lerp(lerp(br, -sw * 0.9, w), -1.1, s) + jitter * 0.5 * s;
-      r.sh.rotation.x = lerp(lerp(br, sw * 0.9, w), -1.1, s) - jitter * 0.5 * s;
+      // Dáng xác sống: tay đưa thẳng ra trước khi đứng/đi, chỉ khi ngồi gõ phím mới hạ xuống.
+      l.sh.rotation.x = lerp(-1.4 + br - sw * 0.2, -1.1, s) + jitter * 0.5 * s;
+      r.sh.rotation.x = lerp(-1.4 + br + sw * 0.2, -1.1, s) - jitter * 0.5 * s;
       l.el.rotation.x = lerp(-0.1, -0.6 * (0.4 + 0.6 * ty), s) + jitter;
       r.el.rotation.x = lerp(-0.1, -0.6 * (0.4 + 0.6 * ty), s) - jitter;
       body.position.x = jitter * 0.3;
       head.rotation.y = this.loc === 'meet' && !this.moving ? Math.sin(t * 1.3 + this.i) * 0.35 : 0;
+      // Lê bước: nghiêng người lắc lư, đầu lệch một bên (không dùng khi ngồi để không méo tư thế gõ phím).
+      this.model.rotation.z = Math.sin(this.phase) * 0.1 * w * (1 - s);
+      head.rotation.z = 0.3 + Math.sin(t * 0.9 + this.i) * 0.08;
       this.model.rotation.y = this.rot;
       this.model.position.y = -0.09 * s + Math.abs(Math.sin(this.phase)) * 0.06 * w;
     }
@@ -420,16 +453,51 @@
 
   function setConn(on) { $('connbox').classList.toggle('on', on); $('conn').textContent = DEMO ? 'Chế độ demo' : on ? 'Đã kết nối' : 'Mất kết nối — đang thử lại…'; }
 
+  function showResult(d) {
+    $('rtitle').textContent = d.code === 0 ? 'Kết quả' : 'Lỗi (mã ' + d.code + ')';
+    $('rtext').textContent = d.output || '(không có đầu ra)';
+    $('result').hidden = false;
+  }
+  $('rclose').onclick = () => { $('result').hidden = true; };
+
   function setRunning(on) {
     $('psend').disabled = on; $('ptext').placeholder = on ? 'Claude Code đang chạy…' : 'Giao việc cho Claude Code… (Enter để gửi)';
   }
 
+  // File đính kèm được đọc ngay trong trình duyệt và ghép vào prompt: không ghi đĩa, không phụ thuộc đường dẫn.
+  const attached = [];
+  const MAX_FILE = 400 * 1024;
+  function renderChips() {
+    const box = $('chips'); box.textContent = '';
+    attached.forEach((f, i) => {
+      const c = document.createElement('span'); c.className = 'chip'; c.textContent = f.name + ' ';
+      const x = document.createElement('button'); x.type = 'button'; x.textContent = '✕'; x.onclick = () => { attached.splice(i, 1); renderChips(); };
+      c.append(x); box.append(c);
+    });
+  }
+  async function addFiles(files) {
+    for (const f of files) {
+      if (f.size > MAX_FILE) { $('ptext').placeholder = f.name + ' quá lớn (tối đa 400KB)'; continue; }
+      const text = await f.text();
+      if (text.includes('\u0000')) { $('ptext').placeholder = f.name + ' không phải file văn bản'; continue; }
+      attached.push({ name: f.name, text });
+    }
+    renderChips();
+  }
+  $('pattach').onclick = () => $('pfile').click();
+  $('pfile').onchange = (e) => { addFiles([...e.target.files]); e.target.value = ''; };
+  const form = $('prompt');
+  form.addEventListener('dragover', (e) => { e.preventDefault(); form.classList.add('drag'); });
+  form.addEventListener('dragleave', () => form.classList.remove('drag'));
+  form.addEventListener('drop', (e) => { e.preventDefault(); form.classList.remove('drag'); addFiles([...e.dataTransfer.files]); });
+
   $('prompt').onsubmit = async (e) => {
     e.preventDefault();
-    const text = $('ptext').value.trim();
-    if (!text || DEMO) { if (DEMO) $('ptext').placeholder = 'Demo: không gửi tới Claude Code'; return; }
+    const typed = $('ptext').value.trim();
+    const text = attached.map((f) => '[File đính kèm: ' + f.name + ']\n```\n' + f.text + '\n```\n\n').join('') + typed;
+    if (!typed || DEMO) { if (DEMO) $('ptext').placeholder = 'Demo: không gửi tới Claude Code'; return; }
     const r = await fetch('/prompt', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Agent-Office': '1' }, body: JSON.stringify({ text }) }).catch(() => null);
-    if (r && r.ok) $('ptext').value = '';
+    if (r && r.ok) { $('ptext').value = ''; attached.length = 0; renderChips(); $('result').hidden = true; }
     else $('ptext').placeholder = r && r.status === 409 ? 'Đang bận, đợi chạy xong' : 'Gửi thất bại';
   };
 
@@ -446,7 +514,10 @@
       });
       renderList(); renderDetail();
     });
-    es.addEventListener('run', (ev) => setRunning(JSON.parse(ev.data).running));
+    es.addEventListener('run', (ev) => {
+      const d = JSON.parse(ev.data); setRunning(d.running);
+      if (!d.running) showResult(d);
+    });
     es.addEventListener('state', (ev) => applyEvent(JSON.parse(ev.data)));
   }
 
@@ -468,11 +539,11 @@
 
     const renderer = new THREE.WebGLRenderer({ canvas: $('c'), antialias: true });
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    const scene = new THREE.Scene(); scene.background = new THREE.Color(0xdfeaf2);
+    const scene = new THREE.Scene(); scene.background = new THREE.Color(0x0b1020);
     const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 200);
 
-    scene.add(new THREE.HemisphereLight(0xffffff, 0xd9c9b0, 0.5));
-    const sun = new THREE.DirectionalLight(0xfff1dd, 0.55);
+    scene.add(new THREE.HemisphereLight(0x8fa6ff, 0x20263a, 0.4));
+    const sun = new THREE.DirectionalLight(0xaabbff, 0.3); // ánh trăng
     const span = Math.max(L.W, L.D) * 0.75;
     sun.position.set(L.W * 0.9, 20, L.D * 1.1); sun.target.position.set(L.W / 2, 0, L.D / 2);
     sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0006;

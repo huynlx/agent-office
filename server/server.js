@@ -6,6 +6,7 @@ const { spawn } = require('child_process');
 const { createTracker } = require('./mapper');
 
 const MAX_BODY = 64 * 1024;
+const MAX_PROMPT_BODY = 1024 * 1024; // prompt có thể đính kèm nội dung file
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
@@ -14,7 +15,7 @@ const MIME = {
 /**
  * Chạy `claude -p` headless; prompt đi qua stdin (không qua argv) nên không bị shell injection.
  * @param {string} text Prompt của người dùng.
- * @param {(code: number) => void} done Gọi khi tiến trình kết thúc.
+ * @param {(code: number, output: string) => void} done Gọi khi tiến trình kết thúc, kèm câu trả lời (hoặc lỗi).
  * @returns {void}
  * @example
  * defaultRunner('liệt kê file', (code) => console.log(code));
@@ -24,10 +25,14 @@ function defaultRunner(text, done) {
   const p = spawn('claude', ['-p', ...extra], {
     cwd: process.env.AGENT_OFFICE_CWD || process.cwd(),
     shell: process.platform === 'win32', // claude là .cmd trên Windows
-    stdio: ['pipe', 'ignore', 'ignore'],
+    stdio: ['pipe', 'pipe', 'pipe'],
   });
-  p.on('error', () => done(-1));
-  p.on('close', (c) => done(c === null ? -1 : c));
+  let out = '', err = '';
+  // Giới hạn 20KB để một câu trả lời quá dài không làm nặng SSE.
+  p.stdout.on('data', (d) => { if (out.length < 20000) out += d; });
+  p.stderr.on('data', (d) => { if (err.length < 4000) err += d; });
+  p.on('error', () => done(-1, 'Không chạy được `claude` (đã cài và có trong PATH chưa?)'));
+  p.on('close', (c) => done(c === null ? -1 : c, (out || err).trim()));
   p.stdin.on('error', () => {});
   p.stdin.end(text);
 }
@@ -74,13 +79,13 @@ function createApp({ roster, publicDir = path.join(__dirname, '..', 'public'), i
     serveStatic(url.pathname, res);
   });
 
-  function readBody(req, res, cb) {
+  function readBody(req, res, cb, max = MAX_BODY) {
     let size = 0;
     const chunks = [];
     let tooBig = false;
     req.on('data', (c) => {
       size += c.length;
-      if (size > MAX_BODY) { tooBig = true; return; } // bỏ qua phần dư, vẫn đọc hết để trả lời được
+      if (size > max) { tooBig = true; return; } // bỏ qua phần dư, vẫn đọc hết để trả lời được
       chunks.push(c);
     });
     req.on('end', () => {
@@ -96,13 +101,15 @@ function createApp({ roster, publicDir = path.join(__dirname, '..', 'public'), i
     if (!/^application\/json/.test(req.headers['content-type'] || '') || req.headers['x-agent-office'] !== '1') { res.writeHead(403).end(); return; }
     readBody(req, res, (p) => {
       const text = p && typeof p.text === 'string' ? p.text.trim() : '';
-      if (!text || text.length > 8000) { res.writeHead(400).end(); return; }
+      if (!text || text.length > 600000) { res.writeHead(400).end(); return; }
       if (running) { res.writeHead(409).end(); return; }
       running = true;
       broadcast('run', { running: true });
-      runner(text, (code) => { running = false; broadcast('run', { running: false, code }); });
+      // claude khởi động mất vài giây trước khi hook đầu tiên bắn: cho PM nhận việc ngay để người dùng thấy phản hồi.
+      tracker.set((roster.find((r) => r.id === 'director') || roster.find((r) => r.id === 'pm') || roster[0]).id, 'working', 'Nhận việc…');
+      runner(text, (code, output) => { running = false; tracker.handle({ hook_event_name: 'Stop' }); broadcast('run', { running: false, code, output: output || '' }); });
       res.writeHead(202, { 'Content-Type': 'application/json' }).end('{"ok":true}');
-    });
+    }, MAX_PROMPT_BODY);
   }
 
   function serveStatic(pathname, res) {
