@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Virtual Agent Office 3D</title>
+<style>
+  :root { --ink: #1f2430; --card: #fff; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #dfeaf2; font-family: system-ui, "Segoe UI", sans-serif; color: var(--ink); }
+  #c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+  #c:active { cursor: grabbing; }
+  .card { position: fixed; background: var(--card); border: 3px solid var(--ink); border-radius: 14px; box-shadow: 4px 4px 0 var(--ink); padding: 10px 14px; }
+  #title { top: 14px; left: 14px; max-width: 280px; }
+  #title h1 { margin: 0 0 4px; font-size: 16px; }
+  #title p { margin: 0; font-size: 12px; color: #55606e; line-height: 1.4; }
+  #workers { top: 14px; right: 14px; width: 270px; max-height: calc(100% - 100px); overflow: auto; }
+  #workers h2 { margin: 0 0 6px; font-size: 13px; letter-spacing: .08em; }
+  #list { list-style: none; margin: 0; padding: 0; }
+  #list li { display: grid; grid-template-columns: 12px 1fr auto; gap: 2px 8px; align-items: center; padding: 6px 4px; border-top: 1px solid #e4e8ee; cursor: pointer; }
+  #list li:hover { background: #f3f6fa; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--ink); background: #9aa3ad; }
+  .working .dot { background: #2fbf71; } .waiting .dot { background: #f5b82e; }
+  .role { font-weight: 700; font-size: 13px; }
+  .task { grid-column: 2; font-size: 11px; color: #667080; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 14px; }
+  .pill { grid-row: 1; grid-column: 3; font-size: 10px; font-weight: 700; padding: 2px 8px; border: 2px solid var(--ink); border-radius: 99px; background: #e6e9ee; text-transform: uppercase; }
+  .working .pill { background: #bff0d4; } .waiting .pill { background: #ffe8a8; }
+  #detail { left: 14px; bottom: 60px; width: 290px; }
+  #detail[hidden] { display: none; }
+  #detail h3 { margin: 0 0 6px; font-size: 14px; display: flex; justify-content: space-between; }
+  #detail button { border: 2px solid var(--ink); background: #fff; border-radius: 8px; cursor: pointer; font-weight: 700; }
+  #events { list-style: none; margin: 0; padding: 0; font-size: 12px; max-height: 240px; overflow: auto; }
+  #events li { padding: 3px 0; border-top: 1px solid #eef0f4; }
+  #events time { color: #8a93a0; margin-right: 6px; }
+  #prompt { left: 50%; bottom: 14px; transform: translateX(-50%); width: min(560px, calc(100% - 340px)); display: flex; gap: 8px; padding: 8px; }
+  #prompt input { flex: 1; border: 2px solid var(--ink); border-radius: 8px; padding: 8px 10px; font: inherit; font-size: 13px; }
+  #prompt button { border: 2px solid var(--ink); border-radius: 8px; background: #bff0d4; font-weight: 700; padding: 0 14px; cursor: pointer; }
+  #prompt button:disabled { background: #e6e9ee; cursor: wait; }
+  #connbox { left: 14px; bottom: 14px; padding: 6px 12px; font-size: 12px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+  #connbox .dot { background: #e5484d; } #connbox.on .dot { background: #2fbf71; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div class="card" id="title">
+  <h1>Virtual Agent Office 3D</h1>
+  <p>Kéo chuột để xoay · cuộn để zoom · click nhân vật để xem chi tiết. Thêm <b>?demo=1</b> để chạy mô phỏng.</p>
+</div>
+
+<div class="card" id="workers"><h2>WORKERS <span id="count"></span></h2><ul id="list"></ul></div>
+
+<div class="card" id="detail" hidden>
+  <h3><span id="dname"></span><button id="dclose" title="Đóng">✕</button></h3>
+  <ul id="events"></ul>
+</div>
+
+<form class="card" id="prompt"><input id="ptext" maxlength="8000" placeholder="Giao việc cho Claude Code… (Enter để gửi)" autocomplete="off"><button id="psend">Gửi</button></form>
+
+<div class="card" id="connbox"><span class="dot"></span><span id="conn">Đang kết nối…</span></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>window.THREE || document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"><\/script>')</script>
+<script src="app.js"></script>
+</body>
+</html>

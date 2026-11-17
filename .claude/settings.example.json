@@ -1,0 +1,10 @@
+{
+  "hooks": {
+    "PreToolUse": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node \"/ABS/PATH/agent-office/hooks/send.js\"" }] }],
+    "PostToolUse": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node \"/ABS/PATH/agent-office/hooks/send.js\"" }] }],
+    "SubagentStart": [{ "hooks": [{ "type": "command", "command": "node \"/ABS/PATH/agent-office/hooks/send.js\"" }] }],
+    "SubagentStop": [{ "hooks": [{ "type": "command", "command": "node \"/ABS/PATH/agent-office/hooks/send.js\"" }] }],
+    "Notification": [{ "hooks": [{ "type": "command", "command": "node \"/ABS/PATH/agent-office/hooks/send.js\"" }] }],
+    "Stop": [{ "hooks": [{ "type": "command", "command": "node \"/ABS/PATH/agent-office/hooks/send.js\"" }] }]
+  }
+}
